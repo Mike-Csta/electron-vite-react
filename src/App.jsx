@@ -110,8 +110,7 @@ function App() {
   }, []);
 
   const test2 = () => {};
-  return <Test1 />;
-  dziala;
+  // return <Test1 />;
 
   return (
     <div
