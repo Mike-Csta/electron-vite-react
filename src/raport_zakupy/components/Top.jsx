@@ -2,7 +2,21 @@ import React from "react";
 import { useState, useEffect } from "react";
 const { ipcRenderer } = require("electron");
 import { MdOutlineRefresh } from "react-icons/md";
+import { Link } from "react-router-dom";
+
+import {
+  rp1_store,
+  update_switch1,
+  update_switch2,
+  update_top_select_target_value,
+  update_isloading,
+} from "../pullstate/rp1_store.jsx";
+import "./top.css";
 function Top() {
+  const planners = rp1_store.useState((s) => s.planners);
+  const top_select_target_value = rp1_store.useState(
+    (s) => s.top_select_target_value
+  );
   function formatUsername(username) {
     return username
       .split(".") // dzieli nazwę użytkownika na części
@@ -13,10 +27,42 @@ function Top() {
   useEffect(() => {
     ipcRenderer.send("get-username");
     ipcRenderer.on("send-username", (event, username) => {
-      setUsername(`${formatUsername(username)} - Zakupy`);
+      setUsername(`${formatUsername(username)}`);
     });
     console.log(username);
-  });
+  }, []);
+
+  function convertPolishChars(str) {
+    const polishCharMap = {
+      ą: "a",
+      ć: "c",
+      ę: "e",
+      ł: "l",
+      ń: "n",
+      ó: "o",
+      ś: "s",
+      ż: "z",
+      ź: "z",
+      Ą: "A",
+      Ć: "C",
+      Ę: "E",
+      Ł: "L",
+      Ń: "N",
+      Ó: "O",
+      Ś: "S",
+      Ż: "Z",
+      Ź: "Z",
+    };
+
+    return str
+      .split("")
+      .map((char) => polishCharMap[char] || char)
+      .join("");
+  }
+
+  useEffect(() => {
+    update_top_select_target_value(convertPolishChars(username));
+  }, [username]);
 
   return (
     <div
@@ -41,14 +87,31 @@ function Top() {
             position: "relative",
           }}
         >
+          <Link className="top_RIA_logo" to="/App">
+            <button
+              className="top_RIA_logo2"
+              style={{
+                backgroundColor: "transparent",
+                position: "absolute",
+                height: 45,
+                width: 60,
+                border: "none",
+              }}
+              onClick={() => {
+                update_isloading(true);
+              }}
+            >
+              RIA
+            </button>
+          </Link>
           <div
             style={{
               backgroundColor: "#eee",
-              padding: "10px 15px",
+              padding: "10px 15px 15px 5px",
               // borderRadius: "7px",
             }}
           >
-            {username}
+            {username} - Zakupy
           </div>
           <div
             style={{
@@ -90,6 +153,32 @@ function Top() {
           />
         </div>
       </div>
+      <select
+        style={{
+          position: "absolute",
+          right: 150,
+          top: 0,
+          width: 220,
+          height: 45,
+          outline: "none",
+          border: 0,
+          backgroundColor: "#ddd",
+          color: "#777",
+          fontWeight: "600",
+          fontSize: "13px",
+        }}
+        value={top_select_target_value}
+        onChange={(e) => update_top_select_target_value(e.target.value)}
+      >
+        <option value="">Wszyscy Planiści</option>
+
+        <option value={username}>{username}</option>
+        {planners.map((planner) => (
+          <option key={planner} value={planner}>
+            {planner}
+          </option>
+        ))}
+      </select>
       <button
         style={{
           margin: "3px 5px ",
@@ -101,6 +190,9 @@ function Top() {
           right: 0,
           padding: "10px 35px",
           backgroundColor: "#ddd",
+        }}
+        onClick={() => {
+          update_switch1();
         }}
       >
         Zapisz

@@ -2,8 +2,12 @@ import React from "react";
 import { useState, useEffect } from "react";
 import Bottom from "./components/bottom";
 import Top from "./components/Top";
+import Rp1_loading_screen from "./components/Rp1_loading_screen";
+import { rp1_store } from "./pullstate/rp1_store";
 // import Top from "./components/top";
 function Raport_zakupy() {
+  const isloading = rp1_store.useState((s) => s.isloading);
+
   return (
     <div
       className="App"
@@ -18,6 +22,7 @@ function Raport_zakupy() {
         backgroundColor: "#f7f7f7",
       }}
     >
+      {isloading && <Rp1_loading_screen />}
       <div
         style={{
           backgroundColor: "red",
@@ -29,9 +34,9 @@ function Raport_zakupy() {
       </div>
       <div
         style={{
-          backgroundColor: "blue",
           flex: 1,
           width: "100%",
+
           position: "relative",
         }}
       >

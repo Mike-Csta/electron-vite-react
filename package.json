@@ -3,7 +3,7 @@
   "version": "2.2.0",
   "main": "dist-electron/main/index.js",
   "description": "Electron Vite React boilerplate.",
-  "author": "草鞋没号 <308487730@qq.com>",
+  "author": "Mike",
   "license": "MIT",
   "private": true,
   "debug": {
@@ -19,16 +19,24 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/inter": "^5.0.16",
     "@glideapps/glide-data-grid": "^5.3.1",
     "@glideapps/glide-data-grid-cells": "^5.3.1",
+    "@mui/icons-material": "^5.15.0",
+    "@mui/joy": "^5.0.0-beta.18",
+    "@mui/material": "^5.15.0",
     "axios": "^1.6.2",
     "electron-updater": "^6.1.1",
+    "icon-extractor-win": "^1.0.0",
     "lodash": "^4.17.21",
     "luckysheet": "^2.1.13",
     "marked": "^11.0.0",
     "pullstate": "^1.25.0",
     "react-icons": "^4.12.0",
     "react-responsive-carousel": "^3.2.23",
+    "react-router-dom": "^6.21.0",
     "scheduler": "^0.23.0"
   },
   "devDependencies": {

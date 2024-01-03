@@ -1,52 +1,90 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+html {
+  background-color: red;
 }
 
-.logo-box {
-  position: relative;
-  height: 9em;
-}
-
-.logo {
+.app_aplication_photo {
+  width: 175px;
+  height: 175px;
+  filter: blur(80px);
+  opacity: 0.6;
   position: absolute;
-  left: calc(50% - 4.5em);
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.app_aplication_elem:hover .app_aplication_photo {
+  width: 175px;
+  height: 175px;
+  filter: blur(40px);
+  opacity: 0.6;
+  position: absolute;
+  transition: 0.02s;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .logo.electron {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-.flex-center {
+.app_aplication_elem {
   display: flex;
   align-items: center;
+  margin-bottom: 10px;
+  background-color: #dedede;
+  border-radius: 5px;
+  margin-right: 10px;
+  margin-top: 34px;
+  height: 120px;
+  width: 107px;
+  outline: none;
+  border: 3px solid #dcdcdc;
+  border-bottom: 3px solid #d4d4d4;
+  cursor: pointer;
+  align-items: flex-end;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.app_aplication_elem_img {
+  width: 175px;
+  height: 175px;
+  filter: blur(40px);
+  opacity: 0.3;
+  left: -37;
+  top: -35;
+  position: absolute;
+  z-index: 3;
+}
+
+.app_RIA_logo {
+  background-color: rgb(247, 27, 27);
+  width: 85px;
+  height: 74px;
   justify-content: center;
+  align-items: center;
+  text-align: center;
+  display: flex;
+  color: #555555;
+  font-weight: 650;
+  font-size: 40px;
+  margin-top: -20px;
+}
+
+.app_container {
+  background-color: #e7e7e7;
+  /* background: linear-gradient(-70deg, #8800ff0c 20%, #0059ff0a 80%); */
+  width: 100%;
+  height: 100%;
+  margin-left: 13px;
+  margin-right: 13px;
+  margin-bottom: 27px;
+  border-radius: 5px;
+  display: flex;
+}
+
+.app_raport_elem {
+  display: block;
+  background-color: #d6d6d6;
+  width: 390px;
+  height: 45px;
+  display: flex;
+  color: #000;
+  box-sizing: border-box;
+  padding: 10px;
+  padding-left: 15px;
+  align-items: center;
 }

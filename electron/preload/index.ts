@@ -1,52 +1,76 @@
-function domReady(condition: DocumentReadyState[] = ['complete', 'interactive']) {
-  return new Promise(resolve => {
+function domReady(
+  condition: DocumentReadyState[] = ["complete", "interactive"]
+) {
+  return new Promise((resolve) => {
     if (condition.includes(document.readyState)) {
-      resolve(true)
+      resolve(true);
     } else {
-      document.addEventListener('readystatechange', () => {
+      document.addEventListener("readystatechange", () => {
         if (condition.includes(document.readyState)) {
-          resolve(true)
+          resolve(true);
         }
-      })
+      });
     }
-  })
+  });
 }
 
 const safeDOM = {
   append(parent: HTMLElement, child: HTMLElement) {
-    if (!Array.from(parent.children).find(e => e === child)) {
-      return parent.appendChild(child)
+    if (!Array.from(parent.children).find((e) => e === child)) {
+      parent.appendChild(child);
     }
   },
   remove(parent: HTMLElement, child: HTMLElement) {
-    if (Array.from(parent.children).find(e => e === child)) {
-      return parent.removeChild(child)
+    if (Array.from(parent.children).find((e) => e === child)) {
+      parent.removeChild(child);
     }
   },
-}
+};
 
-/**
- * https://tobiasahlin.com/spinkit
- * https://connoratherton.com/loaders
- * https://projects.lukehaas.me/css-loaders
- * https://matejkustec.github.io/SpinThatShit
- */
 function useLoading() {
-  const className = `loaders-css__square-spin`
+  const className = `loaders-css__square-spin`;
   const styleContent = `
 @keyframes square-spin {
-  25% { transform: perspective(100px) rotateX(180deg) rotateY(0); }
-  50% { transform: perspective(100px) rotateX(180deg) rotateY(180deg); }
-  75% { transform: perspective(100px) rotateX(0) rotateY(180deg); }
-  100% { transform: perspective(100px) rotateX(0) rotateY(0); }
+  0% { transform: rotateZ(0); }
+  100%  { transform: rotateX(200deg); }
 }
-.${className} > div {
+
+
+
+.${className}::before {
+  content:"";
+  position: absolute;
+  margin-left: -12px;
   animation-fill-mode: both;
-  width: 50px;
-  height: 50px;
-  background: #fff;
-  animation: square-spin 3s 0s cubic-bezier(0.09, 0.57, 0.49, 0.9) infinite;
+  width: 6px;
+  border-radius:3px;
+  height: 25px;
+  background: #bbb;
+  animation: square-spin 1s 0.1s ease infinite;
 }
+.${className}{
+  animation-fill-mode: both;
+  width: 6px;
+  border-radius:3px;
+  height: 25px;
+  background: #bbb;
+  animation: square-spin 1s 0.15s ease infinite;
+}
+
+.${className}::after {
+  content:"";
+  position: absolute;
+  margin-left: 12px;
+  animation-fill-mode: both;
+  width: 6px;
+  border-radius:3px;
+  height: 25px;
+  background: #bbb;
+  animation: square-spin 1s 0.1s ease infinite;
+}
+
+
+
 .app-loading-wrap {
   position: fixed;
   top: 0;
@@ -56,37 +80,44 @@ function useLoading() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #282c34;
-  z-index: 9;
+  background: #ddd;
+  z-index: 90000;
 }
-    `
-  const oStyle = document.createElement('style')
-  const oDiv = document.createElement('div')
+    `;
+  const oStyle = document.createElement("style");
+  const oDiv = document.createElement("div");
 
-  oStyle.id = 'app-loading-style'
-  oStyle.innerHTML = styleContent
-  oDiv.className = 'app-loading-wrap'
-  oDiv.innerHTML = `<div class="${className}"><div></div></div>`
+  oStyle.id = "app-loading-style";
+  oStyle.innerHTML = styleContent;
+  oDiv.className = "app-loading-wrap";
+  oDiv.innerHTML = `<div><div style="color:white;
+  
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  ;  letter-spacing: 1px;font-size:37px;
+  left:50%;transform:translateX(-50%);
+  color:#bbb;
+  font-weight:bold;position:absolute;bottom:30px">DAB</div><div class="${className}"><div></div></div></div>`;
 
   return {
     appendLoading() {
-      safeDOM.append(document.head, oStyle)
-      safeDOM.append(document.body, oDiv)
+      safeDOM.append(document.head, oStyle);
+      safeDOM.append(document.body, oDiv);
     },
     removeLoading() {
-      safeDOM.remove(document.head, oStyle)
-      safeDOM.remove(document.body, oDiv)
+      safeDOM.remove(document.head, oStyle);
+      safeDOM.remove(document.body, oDiv);
     },
-  }
+  };
 }
 
 // ----------------------------------------------------------------------
 
-const { appendLoading, removeLoading } = useLoading()
-domReady().then(appendLoading)
+const { appendLoading, removeLoading } = useLoading();
+domReady().then(appendLoading);
 
 window.onmessage = (ev) => {
-  ev.data.payload === 'removeLoading' && removeLoading()
-}
+  ev.data.payload === "removeLoading" && removeLoading();
+};
 
-setTimeout(removeLoading, 4999)
+setTimeout(removeLoading, 4999);

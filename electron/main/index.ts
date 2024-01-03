@@ -3,41 +3,26 @@ import { release } from "node:os";
 import { join } from "node:path";
 import { update } from "./update";
 const os = require("os");
+const fs = require("fs");
+const path = require("path");
+const { exec } = require("child_process");
+const { spawn } = require("child_process");
+const lockFileDir = "/tmp/app-lock-"; // Katalog dla plików blokady
 
-// The built directory structure
-//
-// ├─┬ dist-electron
-// │ ├─┬ main
-// │ │ └── index.js    > Electron-Main
-// │ └─┬ preload
-// │   └── index.js    > Preload-Scripts
-// ├─┬ dist
-// │ └── index.html    > Electron-Renderer
-//
 process.env.DIST_ELECTRON = join(__dirname, "../");
 process.env.DIST = join(process.env.DIST_ELECTRON, "../dist");
 process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
   ? join(process.env.DIST_ELECTRON, "../public")
   : process.env.DIST;
 
-// Disable GPU Acceleration for Windows 7
 if (release().startsWith("6.1")) app.disableHardwareAcceleration();
-
-// Set application name for Windows 10+ notifications
 if (process.platform === "win32") app.setAppUserModelId(app.getName());
-
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
 
-// Remove electron security warnings
-// This warning only shows in development mode
-// Read more on https://www.electronjs.org/docs/latest/tutorial/security
-// process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
-
 let win: BrowserWindow | null = null;
-// Here, you can also use other preload
 const preload = join(__dirname, "../preload/index.js");
 const url = process.env.VITE_DEV_SERVER_URL;
 const indexHtml = join(process.env.DIST, "index.html");
@@ -52,37 +37,171 @@ async function createWindow() {
     icon: join(process.env.VITE_PUBLIC, "favicon.ico"),
     webPreferences: {
       preload,
-      // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
-      // Consider using contextBridge.exposeInMainWorld
-      // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
       nodeIntegration: true,
       contextIsolation: false,
     },
   });
 
+  const args = process.argv.slice(2);
+  const shortcutArg = args[0];
+
   if (url) {
-    // electron-vite-vue#298
     win.loadURL(url);
-    // Open devTool if the app is not packaged
-    win.webContents.openDevTools();
+    if (!app.isPackaged) {
+      win.webContents.openDevTools();
+    }
   } else {
     win.loadFile(indexHtml);
   }
 
-  // Test actively push message to the Electron-Renderer
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
+    win?.webContents.send("shortcut-arg", shortcutArg);
   });
 
-  // Make all links open with the browser, not with the application
+  ipcMain.on("request-shortcut-arg", (event) => {
+    event.reply("response-shortcut-arg", shortcutArg);
+  });
+  app.setName("UnikalnaNazwaAplikacji");
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https:")) shell.openExternal(url);
     return { action: "deny" };
   });
 
-  // Apply electron-updater
   update(win);
 }
+
+// ipcMain.on(
+//   "create-custom-shortcut",
+//   (event, appPath, shortcutName, iconPath, additionalArgs = "") => {
+//     const shortcutPath = path.join(
+//       app.getPath("desktop"),
+//       `${shortcutName}.lnk`
+//     );
+//     const args = `--no-sandbox ${additionalArgs}`; // Dodanie --no-sandbox do argumentów
+
+//     const shortcutOptions = {
+//       target: appPath,
+//       args: args,
+//       icon: iconPath, // Dodaj ścieżkę do ikony
+//       description: shortcutName, // Możesz też dodać opis
+//     };
+
+//     if (shell.writeShortcutLink(shortcutPath, "create", shortcutOptions)) {
+//       event.reply("custom-shortcut-creation-result", true);
+//     } else {
+//       event.reply("custom-shortcut-creation-result", false);
+//     }
+//   }
+// );
+
+const activeProcesses = new Map();
+
+ipcMain.on("launch-app", (event, installerFolderPath) => {
+  const appPath = process.argv.slice(2)[0] || "App";
+
+  if (activeProcesses.has(appPath)) {
+    console.log(`Aplikacja ${appPath} jest już uruchomiona.`);
+    return;
+  }
+
+  if (!fs.existsSync(appPath)) {
+    console.log(`Plik ${appPath} nie istnieje. Uruchamiam instalator.`);
+    const installerFiles = fs
+      .readdirSync(installerFolderPath)
+      .filter((file) => file.endsWith(".exe"));
+    if (installerFiles.length === 0) {
+      console.error(
+        `Nie znaleziono pliku instalacyjnego w folderze ${installerFolderPath}`
+      );
+      return;
+    }
+
+    const installerPath = `${installerFolderPath}/${installerFiles[0]}`;
+    spawn(installerPath, [], { detached: true, stdio: "ignore" }).unref();
+    return;
+  }
+
+  const child = spawn(appPath, [], {
+    detached: true,
+    env: {},
+    stdio: "ignore",
+  });
+
+  activeProcesses.set(appPath, child);
+  child.unref();
+  child.on("error", (error) => {
+    console.error(`Błąd uruchomienia aplikacji: ${error}`);
+    activeProcesses.delete(appPath);
+  });
+
+  child.on("close", (code) => {
+    console.log(`Proces zakończony z kodem: ${code}`);
+    activeProcesses.delete(appPath);
+  });
+});
+
+// Funkcja do sprawdzania zainstalowanych aplikacji
+function checkInstalledApps(networkFolderPath, localFolderPath) {
+  const getDirectories = (srcPath) => {
+    return fs
+      .readdirSync(srcPath)
+      .filter((file) => fs.statSync(path.join(srcPath, file)).isDirectory());
+  };
+
+  const networkFolders = getDirectories(networkFolderPath);
+  const localFolders = getDirectories(localFolderPath);
+
+  const result = networkFolders.map((folder) => {
+    const executablePath = path.join(localFolderPath, folder, `${folder}.exe`);
+    const installPath = path.join(networkFolderPath, folder);
+
+    const isInstalled = fs.existsSync(executablePath);
+
+    return {
+      name: folder,
+      installed: isInstalled,
+      executablePath: executablePath,
+      installPath: installPath,
+    };
+  });
+
+  return result;
+}
+
+// Nasłuchiwanie zdarzeń IPC
+ipcMain.on("check-installed-apps", (event, networkFolderPath) => {
+  const localFolderPath = `C:\\Users\\${process.env.USERNAME}\\AppData\\Local\\Programs`;
+  const installedApps = checkInstalledApps(networkFolderPath, localFolderPath);
+  event.reply("installed-apps-response", installedApps);
+});
+
+ipcMain.on("check-installed-apps2", (event, networkFolderPath) => {
+  const localFolderPath = `C:\\Users\\${process.env.USERNAME}\\AppData\\Local\\Programs`;
+  const installedApps = checkInstalledApps(networkFolderPath, localFolderPath);
+  event.reply("installed-apps-response2", installedApps);
+});
+
+ipcMain.on(
+  "create-desktop-shortcut",
+  (event, appPath, shortcutName, args = "") => {
+    const shortcutPath = path.join(
+      app.getPath("desktop"),
+      `${shortcutName}.lnk`
+    );
+
+    const shortcutOptions = {
+      target: appPath,
+      args: args,
+    };
+
+    if (shell.writeShortcutLink(shortcutPath, "create", shortcutOptions)) {
+      event.reply("shortcut-creation-result", true);
+    } else {
+      event.reply("shortcut-creation-result", false);
+    }
+  }
+);
 
 app.whenReady().then(createWindow);
 
@@ -93,7 +212,6 @@ app.on("window-all-closed", () => {
 
 app.on("second-instance", () => {
   if (win) {
-    // Focus on the main window if the user tried to open another
     if (win.isMinimized()) win.restore();
     win.focus();
   }
@@ -108,7 +226,6 @@ app.on("activate", () => {
   }
 });
 
-// New window example arg: new windows url
 ipcMain.handle("open-win", (_, arg) => {
   const childWindow = new BrowserWindow({
     webPreferences: {

@@ -3,32 +3,87 @@ import { DataEditor, GridCellKind } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
 import axios from "axios";
 import { MdAddAlarm } from "react-icons/md";
-
+import {
+  rp1_store,
+  update_switch1,
+  update_switch2,
+  update_planners,
+  update_isloading,
+} from "../pullstate/rp1_store.jsx";
+import bottom from "./bottom.css";
 export default function App() {
   const [additionalData, setAdditionalData] = useState([]);
-
+  const switch1 = rp1_store.useState((s) => s.switch1);
   const [selectedPlanner, setSelectedPlanner] = useState("");
   const [updatedData, setUpdatedData] = useState([]);
+  const filteredData = useMemo(() => {
+    return selectedPlanner
+      ? additionalData.filter(
+          (data) =>
+            convertPolishChars(data.Planista) ===
+            convertPolishChars(selectedPlanner)
+        )
+      : additionalData;
+  }, [additionalData, selectedPlanner]);
 
   // Definiowanie tablicy z nazwami kolumn i ich szerokościami
+  const top_select_target_value = rp1_store.useState(
+    (s) => s.top_select_target_value
+  );
   const [customColumnWidths, setCustomColumnWidths] = useState([
-    { columnName: "Uwagi", width: 550 },
-    { columnName: "Historia", width: 250 },
-    { columnName: "Do_księgowości", width: 110 },
+    { columnName: "Uwagi", width: 200 },
+    { columnName: "Historia", width: 550 },
+    { columnName: "Do_księgowosci", width: 35 },
   ]);
+
   const [checkboxStates, setCheckboxStates] = useState({});
+
   useEffect(() => {
     const initialCheckboxStates = {};
     additionalData.forEach((data, index) => {
-      initialCheckboxStates[index] = false;
+      initialCheckboxStates[index] = data.Do_księgowosci === "Tak";
     });
     setCheckboxStates(initialCheckboxStates);
+    console.log("initialCheckboxStates", initialCheckboxStates);
   }, [additionalData]);
+
+  function convertPolishChars(str) {
+    const polishCharMap = {
+      ą: "a",
+      ć: "c",
+      ę: "e",
+      ł: "l",
+      ń: "n",
+      ó: "o",
+      ś: "s",
+      ż: "z",
+      ź: "z",
+      Ą: "A",
+      Ć: "C",
+      Ę: "E",
+      Ł: "L",
+      Ń: "N",
+      Ó: "O",
+      Ś: "S",
+      Ż: "Z",
+      Ź: "Z",
+    };
+
+    return str
+      .split("")
+      .map((char) => polishCharMap[char] || char)
+      .join("");
+  }
 
   const getAccess = async () => {
     try {
       const response = await axios.post("http://localhost:5000/get_access");
-      setAdditionalData(response.data);
+      // Resetowanie kolumny "Uwagi" dla każdego elementu w odpowiedzi
+      const dataWithClearedRemarks = response.data.map((item) => ({
+        ...item,
+        Uwagi: "", // Czyszczenie kolumny Uwagi
+      }));
+      setAdditionalData(dataWithClearedRemarks);
     } catch (error) {
       console.error("Wystąpił błąd:", error);
     }
@@ -38,7 +93,22 @@ export default function App() {
     const fetchData = async () => {
       try {
         const response = await axios.post("http://localhost:5000/get_access");
-        setAdditionalData(response.data);
+        // Resetowanie kolumny "Uwagi" dla każdego elementu w odpowiedzi
+        const dataWithClearedRemarks = response.data.map((item) => ({
+          ...item,
+          Uwagi: "", // Czyszczenie kolumny Uwagi
+        }));
+        setAdditionalData(dataWithClearedRemarks);
+
+        // Aktualizacja stanu checkboxów na podstawie nowych danych
+        const newCheckboxStates = {};
+        response.data.forEach((item, index) => {
+          newCheckboxStates[index] = item.Do_księgowosci === "Tak";
+        });
+        setCheckboxStates(newCheckboxStates);
+        setTimeout(() => {
+          update_isloading(false);
+        }, 200);
       } catch (error) {
         console.error("Wystąpił błąd:", error);
       }
@@ -55,10 +125,10 @@ export default function App() {
     // Definiowanie specjalnych kolumn
     const specialColumns = [
       {
-        title: "Do_księgowości",
+        title: "Do_księgowosci",
         kind: GridCellKind.Boolean,
         width:
-          customColumnWidths.find((c) => c.columnName === "Do_księgowości")
+          customColumnWidths.find((c) => c.columnName === "Do_księgowosci")
             ?.width || 110,
       },
       {
@@ -85,7 +155,7 @@ export default function App() {
     const otherColumns = additionalData[0]
       ? Object.keys(additionalData[0])
           .map((key) => {
-            if (["Dla_księgowości", "Uwagi", "Historia"].includes(key))
+            if (["Do_księgowosci", "Uwagi", "Historia"].includes(key))
               return null; // Pomijanie specjalnych kolumn
 
             const customWidth =
@@ -101,28 +171,33 @@ export default function App() {
   }, [additionalData, customColumnWidths]);
 
   const getCellContent = ([col, row]) => {
+    // Sprawdzenie, czy istnieje checkboxStates[row] dla kolumny 0
     if (col === 0) {
+      if (checkboxStates[row] === undefined) {
+        console.error("Brak danych dla checkboxStates w wierszu:", row);
+        return { kind: GridCellKind.Boolean, data: false }; // Zwraca domyślną wartość, jeśli brak danych
+      }
       return { kind: GridCellKind.Boolean, data: checkboxStates[row] };
+    }
+
+    // Sprawdzenie, czy istnieje filteredData[row] i columns[col]
+    if (!filteredData[row] || !columns[col]) {
+      console.error("Brak danych dla wiersza:", row, "lub kolumny:", col);
+      return { kind: GridCellKind.Text, data: "" }; // Zwraca pusty tekst, jeśli brak danych
     }
 
     const cellData = filteredData[row][columns[col].title];
 
-    // Dodaj ten fragment
-    // if (columns[col].title === "Uwagi" && filteredData[row]["Historia"]) {
-    //   console.log("z historii do uwag");
-    //   return {
-    //     kind: GridCellKind.Text,
-    //     displayData: filteredData[row]["Historia"][0] || "",
-    //     allowOverlay: true,
-    //     data: filteredData[row]["Historia"][0] || "",
-    //   };
-    // }
-    // Reszta funkcji pozostaje bez zmian
+    // Twoje istniejące warunki i logika
+    // (Możesz tu dodać więcej kodu, jeśli potrzebujesz)
+
+    // Zwróć odpowiednią zawartość komórki
     return Array.isArray(cellData)
       ? { kind: GridCellKind.Custom, data: cellData, allowOverlay: false }
       : {
           kind: GridCellKind.Text,
           displayData: cellData,
+
           allowOverlay: true,
           data: cellData,
         };
@@ -165,45 +240,55 @@ export default function App() {
       throw error;
     }
   };
+
+  useEffect(() => {
+    updateAccess(updatedData);
+    console.log("updatedDataaaaaaaa");
+  }, [switch1]);
+
   const onCellEdited = ([col, row], newValue) => {
-    // Znalezienie oryginalnego indeksu w additionalData
+    // Znajdowanie odpowiadającego indeksu w oryginalnych danych
     const originalRow = additionalData.findIndex(
       (item) => item === filteredData[row]
     );
-
-    if (newValue.kind === GridCellKind.Boolean) {
-      setCheckboxStates((prev) => ({ ...prev, [originalRow]: newValue.data }));
+    if (originalRow === -1) {
+      console.error("Nie znaleziono odpowiadających danych");
+      return;
     }
 
-    if (newValue.kind === GridCellKind.Text && columns[col].title === "Uwagi") {
-      const updatedDataa = additionalData.map((item, idx) => {
-        if (idx === originalRow) {
-          return { ...item, Uwagi: newValue.data };
-        }
-        return item;
-      });
+    const updatedData = [...additionalData];
+    const updatedRowData = { ...updatedData[originalRow] };
 
-      // Ustawienie zaktualizowanych danych
-      setAdditionalData(updatedDataa);
-
-      // Opcjonalnie: Wysyłanie zaktualizowanych danych do serwera
-
-      setUpdatedData(updatedDataa);
+    if (
+      columns[col].title === "Do_księgowosci" &&
+      newValue.kind === GridCellKind.Boolean
+    ) {
+      updatedRowData.Do_księgowosci = newValue.data ? "Tak" : "Nie";
+      // Aktualizacja checkboxStates dla przefiltrowanych danych
+      const newCheckboxStates = { ...checkboxStates };
+      newCheckboxStates[row] = newValue.data;
+      setCheckboxStates(newCheckboxStates);
+    } else if (newValue.kind === GridCellKind.Text) {
+      updatedRowData[columns[col].title] = newValue.data;
     }
 
-    // Opcjonalnie: Logowanie aktualnych danych z checkboxami
-    logCurrentDataWithCheckboxes();
+    updatedData[originalRow] = updatedRowData;
+    setAdditionalData(updatedData);
+    setUpdatedData(updatedData); // Tylko jeśli jest to konieczne
   };
 
   useEffect(() => {
-    const initialCheckboxStates = { ...checkboxStates };
-    additionalData.forEach((data, index) => {
-      if (initialCheckboxStates[index] === undefined) {
-        initialCheckboxStates[index] = false;
-      }
+    setSelectedPlanner(top_select_target_value);
+  }, [top_select_target_value]);
+
+  useEffect(() => {
+    // Aktualizacja stanu checkboxów na podstawie przefiltrowanych danych
+    const newCheckboxStates = { ...checkboxStates };
+    filteredData.forEach((data, index) => {
+      newCheckboxStates[index] = data.Do_księgowosci === "Tak";
     });
-    setCheckboxStates(initialCheckboxStates);
-  }, [additionalData]);
+    setCheckboxStates(newCheckboxStates);
+  }, [filteredData]);
 
   const logCurrentDataWithCheckboxes = () => {
     const combinedData = additionalData.map((row, index) => ({
@@ -240,16 +325,14 @@ export default function App() {
     return Array.from(plannerSet);
   }, [additionalData]);
 
-  const filteredData = useMemo(() => {
-    return selectedPlanner
-      ? additionalData.filter((data) => data.Planista === selectedPlanner)
-      : additionalData;
-  }, [additionalData, selectedPlanner]);
+  useEffect(() => {
+    update_planners(planners);
+  }, [planners]);
   ////
   const rowHeight = useMemo(() => {
     return (rowIndex) => {
       const rowData = filteredData[rowIndex];
-      const baseHeight = 30; // Bazowa wysokość dla wiersza bez historii
+      const baseHeight = 28; // Bazowa wysokość dla wiersza bez historii
       const padding = 0; // Dodajemy 10px na górę i 10px na dół
 
       if (rowData && rowData.Historia && rowData.Historia.length > 1) {
@@ -267,23 +350,12 @@ export default function App() {
   const onRowAppended = () => {
     console.log("Dodano wiersz", e);
   };
+
   return (
     <div
       style={{ width: "100%", height: "calc(100vh - 45px)", overflow: "auto" }}
     >
       {/* Selektor planistów */}
-      {/* <select
-        value={selectedPlanner}
-        onChange={(e) => setSelectedPlanner(e.target.value)}
-      >
-        <option value="">Wszyscy planiści</option>
-        {planners.map((planner) => (
-          <option key={planner} value={planner}>
-            {planner}
-          </option>
-        ))}
-      </select> */}
-      <button onClick={() => updateAccess(updatedData)}>Zapisz</button>
       <DataEditor
         style={{ width: "100%", height: "100%" }}
         columns={columns}
